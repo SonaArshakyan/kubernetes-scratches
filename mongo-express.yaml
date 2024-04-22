@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongo-express-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongo-express
+  template:
+    metadata:
+      labels:
+        app: mongo-express
+    spec:
+      containers:
+      - name: mongo-express
+        image: mongo-express
+        ports:
+        - containerPort: 8081
+        env:
+        - name: ME_CONFIG_MONGODB_ADMINUSERNAME
+          valueFrom: # Values will be referenced from secret file
+            secretKeyRef:
+              name: mongo-secret
+              key: mongo-root-username
+        - name: ME_CONFIG_MONGODB_ADMINPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mongo-secret
+              key: mongo-root-password 
+        - name: ME_CONFIG_MONGODB_SERVER
+          valueFrom: # Value will be used in other components so better to keep in external config file => ConfigMap
+            configMapKeyRef:
+              name: mongodb-configmap
+              key: database_url
+
+--- # mongo-express external service to access UI from browser
+# to differentiate external and internal services we use   1. type: LoadBalancer (confusing becuase internal service also acts as loadbalancer)
+#adding nodePort for external IP address and the range for it  is 30000-32767
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo-express-service
+spec:
+  type: LoadBalancer # accepts external requests and assings service an external IP address
+  selector:
+    app: mongo-express
+  ports:
+  - protocol: TCP
+    port: 8081 #port for the service
+    targetPort: 8081 # this is the containerPort
+    nodePort: 30001

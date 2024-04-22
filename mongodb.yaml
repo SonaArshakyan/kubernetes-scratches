@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb-deployment
+  labels:
+    app: mongodb
+spec: 
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongodb
+  template:  # this part is for pod
+    metadata:
+      labels:
+        app: mongodb
+    spec:
+      containers:
+      - name: mongodb
+        image: mongo   
+        ports:
+        - containerPort: 27017
+        env:
+        - name: MONGO_INITDB_ROOT_USERNAME
+          valueFrom: # values will be referenced from secret file
+            secretKeyRef:
+              name: mongo-secret
+              key: mongo-root-username
+        - name:  MONGO_INITDB_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mongo-secret
+              key: mongo-root-password 
+
+--- # new document is starting for internal service configs to access mongodb in cluster
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb-service
+spec:
+  selector:
+    app: mongodb # pod LabelName , becuase we want this service to connect to the pod
+  ports:
+  - protocol: TCP
+    port: 27017 #service port
+    targetPort: 27017 # containerPort of Deployment
